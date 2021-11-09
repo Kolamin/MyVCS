@@ -1,17 +1,27 @@
 package vcs
 
-import java.io.File
+import java.io.*
 import java.math.BigInteger
 import java.security.MessageDigest
+
+
+data class LoggAdder(val commitHash: String, val author: String, val textCommit: String) {
+    override fun toString(): String {
+        return "commit ${commitHash}\n" +
+                "Author: ${author}\n" +
+                "${textCommit}\n"
+    }
+}
 
 fun main(args: Array<String>) {
     val (config, index) = initProject()
 
     val log = File("vcs\\log.txt")
-    log.createNewFile()
+    if(!log.exists())
+        log.createNewFile()
 
-//    val commits = File("vcs\\commits")
-//    commits.mkdir()
+    val commits = File("vcs\\commits")
+    commits.mkdir()
 
     //var fileHash = HashMap<String, String>()
 
@@ -69,30 +79,13 @@ fun main(args: Array<String>) {
                 file.mkdir()
                 for (readLine in index.readLines()) {
                     File(readLine)
-                            .let { sourceFile ->
-                                sourceFile.copyTo(File("${file.path}\\$readLine"))
-                            }
+                        .let { sourceFile ->
+                            sourceFile.copyTo(File("${file.path}\\$readLine"))
+                        }
 
-                    log.appendText("commit ${File(readLine).sha1()}\n")
-                    log.appendText("Author: ${config.readLines()[0]}\n")
-                    log.appendText("${args[1]}\n")
-                    //log.appendText("\n")
+                    addCommit(readLine, config, args, log)
                 }
 
-                for (s in log.readLines().toMutableList()) {
-                    logContent.append(s).append("\n")
-                }
-
-                val split = logContent.toString().split("\\n").toMutableList().reversed()
-                for (s in split) {
-                    log.writeText(s)
-                }
-
-//                val logReversed = logContent.split("\\n").toMutableList().reversed()
-//                for (s in logReversed) {
-//                    log.appendText(s)
-//                    log.appendText("\n")
-//                }
 
             } else {
                 println("nothing to commit, working tree clean")
@@ -108,6 +101,21 @@ fun main(args: Array<String>) {
         "checkout" in args -> println("Restore a file.")
         else -> println("\'${args[0]}\' is not a SVCS command.")
     }
+}
+
+private fun addCommit(
+    readLine: String,
+    config: File,
+    args: Array<String>,
+    log: File
+) {
+    val prefix = LoggAdder(File(readLine).sha1(), config.readLines()[0], args[1]).toString()
+    val tempFile = File("temp.txt")
+    tempFile.createNewFile()
+    tempFile.writeText("${prefix}\n")
+    log.forEachLine { x -> tempFile.appendText("${x}\n") }
+    tempFile.copyTo(log, true)
+    tempFile.delete()
 }
 
 private fun getHashMapFiles(index: File): HashMap<String, String> {
@@ -144,12 +152,12 @@ private fun getCommand(args: Array<String>): String {
 
 private fun showHelp() {
     println(
-            "These are SVCS commands:\n" +
-                    "config     Get and set a username.\n" +
-                    "add        Add a file to the index.\n" +
-                    "log        Show commit logs.\n" +
-                    "commit     Save changes.\n" +
-                    "checkout   Restore a file."
+        "These are SVCS commands:\n" +
+                "config     Get and set a username.\n" +
+                "add        Add a file to the index.\n" +
+                "log        Show commit logs.\n" +
+                "commit     Save changes.\n" +
+                "checkout   Restore a file."
     )
 }
 
@@ -179,3 +187,4 @@ fun stringToSHA(input: String): String {
     val md = MessageDigest.getInstance("SHA1")
     return BigInteger(1, md.digest(input.toByteArray())).toString(16).padStart(32, '0')
 }
+
